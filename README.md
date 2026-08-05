@@ -19,7 +19,7 @@ Configured via `.env`:
 - `MAX_BATCH_SIZE`: `256`
 - `MAX_TEXT_LENGTH`: `8192`
 - `GRPC_PORT`: `50051`
-- `REST_PORT`: `8000`
+- `REST_PORT`: `8040`
 
 ## Commands
 ```bash

@@ -21,7 +21,8 @@ protos:
 	@python -c "import os; p='app/grpc/generated/embedding_pb2_grpc.py'; open(p, 'w').write(open(p).read().replace('import embedding_pb2 as embedding__pb2', 'from app.grpc.generated import embedding_pb2 as embedding__pb2')) if os.path.exists(p) else None"
 
 dev:
-	uv run python -m app.main
+	uv run uvicorn app.main:app --host 0.0.0.0 --port 8040 --reload
+
 
 test:
 	uv run python -m pytest tests/

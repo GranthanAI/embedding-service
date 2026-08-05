@@ -3,9 +3,9 @@
 This document describes the REST API endpoints provided by the GraphGPT Embedding Service. The service generates high-quality text embedding vectors using the `all-MiniLM-L6-v2` model.
 
 By default, the REST server runs at:
-* **Base URL**: `http://localhost:8000` (or `http://127.0.0.1:8000`)
-* **Interactive Swagger UI**: `http://localhost:8000/docs`
-* **Alternative Redoc UI**: `http://localhost:8000/redoc`
+* **Base URL**: `http://localhost:8040` (or `http://127.0.0.1:8040`)
+* **Interactive Swagger UI**: `http://localhost:8040/docs`
+* **Alternative Redoc UI**: `http://localhost:8040/redoc`
 
 ---
 
@@ -63,7 +63,7 @@ Content-Type: application/json
 
 #### cURL Example
 ```bash
-curl -X POST http://localhost:8000/v1/embed \
+curl -X POST http://localhost:8040/v1/embed \
   -H "Content-Type: application/json" \
   -d '{"text": "User prefers FastAPI"}'
 ```
@@ -113,7 +113,7 @@ Content-Type: application/json
 
 #### cURL Example
 ```bash
-curl -X POST http://localhost:8000/v1/embed/batch \
+curl -X POST http://localhost:8040/v1/embed/batch \
   -H "Content-Type: application/json" \
   -d '{"texts": ["User prefers FastAPI", "User builds GraphGPT"]}'
 ```
@@ -136,7 +136,7 @@ Shallow liveness check to verify the process is alive.
 
 #### cURL Example
 ```bash
-curl -X GET http://localhost:8000/health
+curl -X GET http://localhost:8040/health
 ```
 
 ---
@@ -173,7 +173,7 @@ Deep check verifying if the model is fully loaded in memory and ready to serve r
 
 #### cURL Example
 ```bash
-curl -X GET http://localhost:8000/ready
+curl -X GET http://localhost:8040/ready
 ```
 
 ---

@@ -33,7 +33,7 @@ class SystemSettings(BaseSettings):
 
     # ── Server Config ────────────────────────────────────────────────────────
     REST_HOST: str = "0.0.0.0"
-    REST_PORT: int = 8000
+    REST_PORT: int = 8040
     GRPC_HOST: str = "0.0.0.0"
     GRPC_PORT: int = 50051
     GRPC_MAX_WORKERS: int = 10
