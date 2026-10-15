@@ -33,9 +33,9 @@ class SystemSettings(BaseSettings):
 
     # ── Server Config ────────────────────────────────────────────────────────
     REST_HOST: str = "0.0.0.0"
-    REST_PORT: int = 8040
+    REST_PORT: int = 8005
     GRPC_HOST: str = "0.0.0.0"
-    GRPC_PORT: int = 50051
+    GRPC_PORT: int = 50054
     GRPC_MAX_WORKERS: int = 10
     GRPC_MAX_MESSAGE_LENGTH: int = 4194304
 

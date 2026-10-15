@@ -27,6 +27,6 @@ COPY app/ ./app/
 COPY protos/ ./protos/
 COPY .env.example ./.env
 
-EXPOSE 8040 50051
+EXPOSE 8005 50054
 
 CMD ["python", "-m", "app.main"]
