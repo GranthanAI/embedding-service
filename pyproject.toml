@@ -31,6 +31,16 @@ dev = [
 [tool.uv]
 package = false
 
+# CPU-only inference (see README): resolve torch from the PyTorch CPU index so
+# Linux/Docker builds do not pull the multi-GB CUDA wheels.
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.black]
 line-length = 88
 target-version = ['py312']
