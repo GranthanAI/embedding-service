@@ -21,7 +21,7 @@ protos:
 	@python -c "import os; p='app/grpc/generated/embedding_pb2_grpc.py'; open(p, 'w').write(open(p).read().replace('import embedding_pb2 as embedding__pb2', 'from app.grpc.generated import embedding_pb2 as embedding__pb2')) if os.path.exists(p) else None"
 
 dev:
-	uv run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
+	uv run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload --proxy-headers --forwarded-allow-ips "$${FORWARDED_ALLOW_IPS:-127.0.0.1}"
 
 
 test:

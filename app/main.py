@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Response, status
 from prometheus_client import make_asgi_app
 import uvicorn
@@ -80,5 +81,8 @@ if __name__ == "__main__":
         "app.main:app",
         host=settings.REST_HOST,
         port=settings.REST_PORT,
-        reload=False
+        reload=False,
+        proxy_headers=True,
+        # Comma-separated proxy IPs/CIDRs whose X-Forwarded-* headers are trusted (the gateway / LB).
+        forwarded_allow_ips=os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1"),
     )
