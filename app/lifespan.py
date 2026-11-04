@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     app.state.container = container
 
     # 2. Start gRPC server background thread
-    grpc_server = GRPCServer(embedding_service=container.embedding_service)
+    grpc_server = GRPCServer(embedding_service=container.embedding_service, reranker=container.reranker)
     grpc_server.start()
     app.state.grpc_server = grpc_server
 

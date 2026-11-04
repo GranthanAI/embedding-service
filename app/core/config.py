@@ -31,6 +31,15 @@ class SystemSettings(BaseSettings):
     MAX_BATCH_SIZE: int = 256
     MAX_TEXT_LENGTH: int = 8192
 
+    # ── Reranker (Rerank RPC) ────────────────────────────────────────────────
+    # Enabled by default but lazily loaded on first call: no memory cost until used.
+    RERANKER_ENABLED: bool = True
+    RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    RERANKER_PRELOAD: bool = False
+    RERANKER_MAX_PASSAGES: int = 50
+    RERANKER_MAX_LENGTH: int = 512
+    RERANKER_BATCH_SIZE: int = 16
+
     # ── Server Config ────────────────────────────────────────────────────────
     REST_HOST: str = "0.0.0.0"
     REST_PORT: int = 8005

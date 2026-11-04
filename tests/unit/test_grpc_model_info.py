@@ -22,7 +22,7 @@ def test_existing_rpcs_are_unchanged():
     assert {"GenerateEmbedding", "GenerateEmbeddings"} <= names and "GetModelInfo" in names
 
 
-def test_rerank_contract_exists_and_is_unimplemented_until_the_reranker_lands():
+def test_rerank_contract_exists_and_is_unimplemented_when_no_reranker_configured():
     import grpc
     import pytest
 
@@ -33,6 +33,5 @@ def test_rerank_contract_exists_and_is_unimplemented_until_the_reranker_lands():
     assert list(request.passages) == ["a", "b"] and list(pb.RerankResponse(scores=[0.1, 0.9]).scores) == pytest.approx([0.1, 0.9])
     context = MagicMock()
     servicer = EmbeddingServiceServicer(MagicMock())
-    with pytest.raises(NotImplementedError):
-        servicer.Rerank(request, context)
-    context.set_code.assert_called_with(grpc.StatusCode.UNIMPLEMENTED)
+    servicer.Rerank(request, context)
+    assert context.abort.call_args[0][0] == grpc.StatusCode.UNIMPLEMENTED

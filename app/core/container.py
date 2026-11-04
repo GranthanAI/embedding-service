@@ -2,6 +2,7 @@ from typing import Optional
 from app.core.config import settings
 from app.core.logging import logger
 from app.models.model_manager import ModelManager
+from app.models.reranker import Reranker
 from app.services.embedding_service import EmbeddingService
 
 
@@ -13,6 +14,7 @@ class Container:
     def __init__(self):
         self.model_manager: Optional[ModelManager] = None
         self.embedding_service: Optional[EmbeddingService] = None
+        self.reranker: Optional[Reranker] = None
 
     async def init_resources(self) -> None:
         """
@@ -35,6 +37,18 @@ class Container:
             max_text_length=settings.MAX_TEXT_LENGTH,
             max_batch_size=settings.MAX_BATCH_SIZE
         )
+
+        # 3. Reranker (lazy unless RERANKER_PRELOAD)
+        if settings.RERANKER_ENABLED:
+            self.reranker = Reranker(
+                model_name=settings.RERANKER_MODEL,
+                device=settings.DEVICE,
+                max_passages=settings.RERANKER_MAX_PASSAGES,
+                max_length=settings.RERANKER_MAX_LENGTH,
+                batch_size=settings.RERANKER_BATCH_SIZE,
+            )
+            if settings.RERANKER_PRELOAD:
+                self.reranker.load()
 
         logger.info("DI Container resources initialized successfully.")
 

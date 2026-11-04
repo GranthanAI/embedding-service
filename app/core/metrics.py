@@ -29,3 +29,32 @@ EMBEDDING_ERRORS = Counter(
     "Total errors occurred during processing",
     ["error_type"]
 )
+
+RERANK_REQUESTS = Counter(
+    "rerank_requests_total",
+    "Total rerank requests received",
+    ["status"]
+)
+
+RERANK_LATENCY = Histogram(
+    "rerank_latency_seconds",
+    "Latency of rerank requests in seconds",
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+)
+
+RERANK_PASSAGES = Histogram(
+    "rerank_passages",
+    "Passages per rerank request",
+    buckets=(1, 5, 10, 20, 30, 50, 100)
+)
+
+RERANK_ERRORS = Counter(
+    "rerank_errors_total",
+    "Rerank errors",
+    ["error_type"]
+)
+
+RERANK_MODEL_LOADED = Gauge(
+    "rerank_model_loaded_status",
+    "1 when the reranker model is resident in memory"
+)

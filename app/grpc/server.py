@@ -13,8 +13,9 @@ class GRPCServer:
     gRPC Server lifecycle wrapper.
     """
 
-    def __init__(self, embedding_service: EmbeddingService):
+    def __init__(self, embedding_service: EmbeddingService, reranker=None):
         self.embedding_service = embedding_service
+        self.reranker = reranker
         self.server: grpc.Server = None
 
     def start(self) -> None:
@@ -25,7 +26,7 @@ class GRPCServer:
                 ('grpc.max_receive_message_length', settings.GRPC_MAX_MESSAGE_LENGTH),
             ]
         )
-        servicer = EmbeddingServiceServicer(self.embedding_service)
+        servicer = EmbeddingServiceServicer(self.embedding_service, reranker=self.reranker)
         embedding_pb2_grpc.add_EmbeddingServiceServicer_to_server(servicer, self.server)
 
         bind_address = f"{settings.GRPC_HOST}:{settings.GRPC_PORT}"

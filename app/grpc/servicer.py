@@ -1,5 +1,5 @@
 import grpc
-from app.core.exceptions import EmbeddingServiceException
+from app.core.exceptions import EmbeddingServiceException, ValidationException
 from app.core.logging import logger
 from app.grpc.generated import embedding_pb2, embedding_pb2_grpc
 from app.services.embedding_service import EmbeddingService
@@ -10,8 +10,33 @@ class EmbeddingServiceServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
     gRPC Servicer implementing EmbeddingService RPCs.
     """
 
-    def __init__(self, embedding_service: EmbeddingService):
+    def __init__(self, embedding_service: EmbeddingService, reranker=None):
         self.embedding_service = embedding_service
+        self.reranker = reranker
+
+    def Rerank(
+        self, request: embedding_pb2.RerankRequest, context: grpc.ServicerContext
+    ) -> embedding_pb2.RerankResponse:
+        if self.reranker is None:
+            context.abort(
+                grpc.StatusCode.UNIMPLEMENTED,
+                "Reranker is disabled on this server (RERANKER_ENABLED=false).",
+            )
+            return embedding_pb2.RerankResponse()
+        try:
+            scores = self.reranker.rerank(request.query, list(request.passages))
+            return embedding_pb2.RerankResponse(model=self.reranker.model_name, scores=scores)
+        except EmbeddingServiceException as e:
+            logger.warning(f"gRPC Rerank error: {e.message}")
+            code = (
+                grpc.StatusCode.INVALID_ARGUMENT
+                if isinstance(e, ValidationException)
+                else grpc.StatusCode.INTERNAL
+            )
+            context.abort(code, e.message)
+        except Exception as e:
+            logger.error(f"gRPC Rerank error: {type(e).__name__}", exc_info=True)
+            context.abort(grpc.StatusCode.INTERNAL, "Internal server error")
 
     def GenerateEmbedding(
         self, request: embedding_pb2.EmbeddingRequest, context: grpc.ServicerContext
