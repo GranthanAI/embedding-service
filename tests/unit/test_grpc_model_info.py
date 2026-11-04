@@ -20,3 +20,19 @@ def test_get_model_info_returns_what_a_client_needs_to_chunk():
 def test_existing_rpcs_are_unchanged():
     names = {m.name for m in embedding_pb2.DESCRIPTOR.services_by_name["EmbeddingService"].methods}
     assert {"GenerateEmbedding", "GenerateEmbeddings"} <= names and "GetModelInfo" in names
+
+
+def test_rerank_contract_exists_and_is_unimplemented_until_the_reranker_lands():
+    import grpc
+    import pytest
+
+    from app.grpc.generated import embedding_pb2 as pb
+
+    assert {"Rerank"} <= {m.name for m in pb.DESCRIPTOR.services_by_name["EmbeddingService"].methods}
+    request = pb.RerankRequest(query="q", passages=["a", "b"])
+    assert list(request.passages) == ["a", "b"] and list(pb.RerankResponse(scores=[0.1, 0.9]).scores) == pytest.approx([0.1, 0.9])
+    context = MagicMock()
+    servicer = EmbeddingServiceServicer(MagicMock())
+    with pytest.raises(NotImplementedError):
+        servicer.Rerank(request, context)
+    context.set_code.assert_called_with(grpc.StatusCode.UNIMPLEMENTED)
