@@ -22,7 +22,8 @@ class ModelManager:
         model_name: str,
         model_path: Optional[str] = None,
         device: str = "cpu",
-        normalize: bool = True
+        normalize: bool = True,
+        tokenizer_id: Optional[str] = None,
     ):
         self.model_name = model_name
         self.model_path = model_path
@@ -31,6 +32,7 @@ class ModelManager:
         self._model: Optional[SentenceTransformer] = None
         self._lock = threading.RLock()
         self._dimension: int = 384
+        self._tokenizer_id = tokenizer_id
 
     def load_model(self) -> None:
         """
@@ -74,6 +76,18 @@ class ModelManager:
 
     def get_dimension(self) -> int:
         return self._dimension
+
+    def get_max_seq_length(self) -> int:
+        """Tokens the loaded model reads per text (longer input is truncated by the model, not rejected)."""
+        if self._model is None:
+            raise ModelLoadException("Model is not loaded.")
+        return int(self._model.max_seq_length)
+
+    def get_tokenizer_id(self) -> str:
+        """Hugging Face id of the tokenizer for this model. A bare sentence-transformers name gets its org prefix."""
+        if self._tokenizer_id:
+            return self._tokenizer_id
+        return self.model_name if "/" in self.model_name else f"sentence-transformers/{self.model_name}"
 
     def encode_single(self, text: str) -> List[float]:
         """

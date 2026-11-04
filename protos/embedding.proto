@@ -5,6 +5,8 @@ package embedding.v1;
 service EmbeddingService {
   rpc GenerateEmbedding (EmbeddingRequest) returns (EmbeddingResponse);
   rpc GenerateEmbeddings (BatchEmbeddingRequest) returns (BatchEmbeddingResponse);
+  // Additive: what a client needs to chunk text the way this model will read it.
+  rpc GetModelInfo (ModelInfoRequest) returns (ModelInfoResponse);
 }
 
 message EmbeddingRequest {
@@ -29,4 +31,14 @@ message BatchEmbeddingResponse {
 
 message FloatVector {
   repeated float values = 1;
+}
+
+message ModelInfoRequest {}
+
+message ModelInfoResponse {
+  string model = 1;          // same value as EmbeddingResponse.model
+  int32 dimension = 2;
+  int32 max_seq_length = 3;  // tokens the model reads; anything beyond is silently truncated by the model
+  string tokenizer_id = 4;   // Hugging Face id of the tokenizer matching this model, loadable by clients
+  bool normalized = 5;       // vectors are L2-normalised
 }

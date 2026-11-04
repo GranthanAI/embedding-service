@@ -30,6 +30,22 @@ class EmbeddingServiceServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
             logger.error(f"gRPC GenerateEmbedding error: {str(e)}", exc_info=True)
             context.abort(grpc.StatusCode.INTERNAL, f"Internal server error: {str(e)}")
 
+    def GetModelInfo(
+        self, request: embedding_pb2.ModelInfoRequest, context: grpc.ServicerContext
+    ) -> embedding_pb2.ModelInfoResponse:
+        try:
+            manager = self.embedding_service.model_manager
+            return embedding_pb2.ModelInfoResponse(
+                model=manager.model_name,
+                dimension=manager.get_dimension(),
+                max_seq_length=manager.get_max_seq_length(),
+                tokenizer_id=manager.get_tokenizer_id(),
+                normalized=manager.normalize,
+            )
+        except Exception as e:
+            logger.error(f"gRPC GetModelInfo error: {str(e)}", exc_info=True)
+            context.abort(grpc.StatusCode.INTERNAL, f"Internal server error: {str(e)}")
+
     def GenerateEmbeddings(
         self, request: embedding_pb2.BatchEmbeddingRequest, context: grpc.ServicerContext
     ) -> embedding_pb2.BatchEmbeddingResponse:
