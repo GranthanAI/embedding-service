@@ -4,6 +4,7 @@ from app.core.logging import logger
 from app.models.model_manager import ModelManager
 from app.models.reranker import Reranker
 from app.services.embedding_service import EmbeddingService
+from app.services.query_cache import QueryCache, RedisLayer
 
 
 class Container:
@@ -27,7 +28,11 @@ class Container:
             model_name=settings.MODEL_NAME,
             model_path=settings.MODEL_PATH,
             device=settings.DEVICE,
-            normalize=settings.NORMALIZE_EMBEDDINGS
+            normalize=settings.NORMALIZE_EMBEDDINGS,
+            priority_lanes=settings.PRIORITY_LANES_ENABLED,
+            bulk_slice_size=settings.BULK_SLICE_SIZE,
+            bulk_max_pending=settings.BULK_MAX_PENDING,
+            truncation_metric=settings.TRUNCATION_METRIC_ENABLED,
         )
         self.model_manager.load_model()
 
@@ -35,7 +40,12 @@ class Container:
         self.embedding_service = EmbeddingService(
             model_manager=self.model_manager,
             max_text_length=settings.MAX_TEXT_LENGTH,
-            max_batch_size=settings.MAX_BATCH_SIZE
+            max_batch_size=settings.MAX_BATCH_SIZE,
+            query_cache=QueryCache(
+                size=settings.QUERY_CACHE_SIZE,
+                redis_layer=RedisLayer(settings.QUERY_CACHE_REDIS_URL, settings.QUERY_CACHE_REDIS_TTL_SECONDS)
+                if settings.QUERY_CACHE_REDIS_URL else None,
+            ),
         )
 
         # 3. Reranker (lazy unless RERANKER_PRELOAD)

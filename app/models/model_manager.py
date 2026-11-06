@@ -5,9 +5,15 @@ from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from app.core.exceptions import ModelLoadException
+from app.core.exceptions import ModelLoadException, OverloadedException
 from app.core.logging import logger
-from app.core.metrics import MODEL_LOADED
+from app.core.metrics import (
+    BULK_REJECTED,
+    EMBEDDING_INPUTS,
+    EMBEDDING_TRUNCATED,
+    MODEL_LOADED,
+)
+from app.models.priority_gate import PriorityGate
 
 
 class ModelManager:
@@ -24,6 +30,10 @@ class ModelManager:
         device: str = "cpu",
         normalize: bool = True,
         tokenizer_id: Optional[str] = None,
+        priority_lanes: bool = False,
+        bulk_slice_size: int = 16,
+        bulk_max_pending: int = 4,
+        truncation_metric: bool = True,
     ):
         self.model_name = model_name
         self.model_path = model_path
@@ -33,6 +43,13 @@ class ModelManager:
         self._lock = threading.RLock()
         self._dimension: int = 384
         self._tokenizer_id = tokenizer_id
+        self.priority_lanes = priority_lanes
+        self.bulk_slice_size = max(1, bulk_slice_size)
+        self.bulk_max_pending = bulk_max_pending
+        self.truncation_metric = truncation_metric
+        self.gate = PriorityGate()
+        self._pending_bulk = 0
+        self._pending_lock = threading.Lock()
 
     def load_model(self) -> None:
         """
@@ -89,14 +106,34 @@ class ModelManager:
             return self._tokenizer_id
         return self.model_name if "/" in self.model_name else f"sentence-transformers/{self.model_name}"
 
+    def count_truncated(self, texts: List[str]) -> int:
+        """
+        Counts inputs whose token length exceeds the model's max_seq_length (the model silently
+        truncates them). Observational only: never changes the vectors, never raises.
+        """
+        if not self.truncation_metric or self._model is None:
+            return 0
+        try:
+            limit = int(self._model.max_seq_length)
+            ids = self._model.tokenizer(texts, add_special_tokens=True, truncation=False)["input_ids"]
+            over = sum(1 for x in ids if len(x) > limit)
+            EMBEDDING_INPUTS.inc(len(texts))
+            if over:
+                EMBEDDING_TRUNCATED.inc(over)
+            return over
+        except Exception:
+            return 0
+
     def encode_single(self, text: str) -> List[float]:
         """
-        Encodes a single string into an embedding vector.
+        Encodes a single string into an embedding vector (interactive lane when priority lanes are on).
         """
         if self._model is None:
             raise ModelLoadException("Model is not loaded.")
 
-        with self._lock:
+        self.count_truncated([text])
+        guard = self.gate.interactive() if self.priority_lanes else self._lock
+        with guard:
             embedding = self._model.encode(
                 text,
                 convert_to_numpy=True,
@@ -107,7 +144,8 @@ class ModelManager:
 
     def encode_batch(self, texts: List[str]) -> List[List[float]]:
         """
-        Encodes a batch of strings into embedding vectors.
+        Encodes a batch of strings into embedding vectors (bulk lane when priority lanes are on:
+        bounded admission, processed in slices so interactive calls can interleave).
         """
         if self._model is None:
             raise ModelLoadException("Model is not loaded.")
@@ -115,15 +153,42 @@ class ModelManager:
         if not texts:
             return []
 
-        with self._lock:
-            embeddings = self._model.encode(
-                texts,
-                convert_to_numpy=True,
-                normalize_embeddings=self.normalize,
-                batch_size=len(texts),
-                show_progress_bar=False
-            )
-        return embeddings.tolist()
+        self.count_truncated(texts)
+        if not self.priority_lanes:
+            with self._lock:
+                embeddings = self._model.encode(
+                    texts,
+                    convert_to_numpy=True,
+                    normalize_embeddings=self.normalize,
+                    batch_size=len(texts),
+                    show_progress_bar=False
+                )
+            return embeddings.tolist()
+
+        with self._pending_lock:
+            if self._pending_bulk >= self.bulk_max_pending:
+                BULK_REJECTED.inc()
+                raise OverloadedException(
+                    f"Bulk embedding queue is full ({self.bulk_max_pending} batches pending); retry later."
+                )
+            self._pending_bulk += 1
+        try:
+            out: List[List[float]] = []
+            for start in range(0, len(texts), self.bulk_slice_size):
+                piece = texts[start:start + self.bulk_slice_size]
+                with self.gate.bulk():
+                    embeddings = self._model.encode(
+                        piece,
+                        convert_to_numpy=True,
+                        normalize_embeddings=self.normalize,
+                        batch_size=len(piece),
+                        show_progress_bar=False
+                    )
+                out.extend(embeddings.tolist())
+            return out
+        finally:
+            with self._pending_lock:
+                self._pending_bulk -= 1
 
     def unload(self) -> None:
         with self._lock:

@@ -31,6 +31,20 @@ class SystemSettings(BaseSettings):
     MAX_BATCH_SIZE: int = 256
     MAX_TEXT_LENGTH: int = 8192
 
+    # ── Priority lanes (see docs/performance.md) ─────────────────────────────
+    # Default off: preserves the original single-lock behaviour. Recommended on for production.
+    PRIORITY_LANES_ENABLED: bool = False
+    BULK_SLICE_SIZE: int = 16          # texts per model call inside a bulk batch
+    BULK_MAX_PENDING: int = 4          # bulk batches admitted at once (running + waiting); more -> RESOURCE_EXHAUSTED
+
+    # ── Query embedding cache ────────────────────────────────────────────────
+    QUERY_CACHE_SIZE: int = 0          # in-process LRU entries, 0 disables
+    QUERY_CACHE_REDIS_URL: str = ""    # empty = no Redis layer (e.g. redis://localhost:6379/0)
+    QUERY_CACHE_REDIS_TTL_SECONDS: int = 3600
+
+    # ── Observability ────────────────────────────────────────────────────────
+    TRUNCATION_METRIC_ENABLED: bool = True  # counts inputs over max_seq_length; vectors unchanged
+
     # ── Reranker (Rerank RPC) ────────────────────────────────────────────────
     # Enabled by default but lazily loaded on first call: no memory cost until used.
     RERANKER_ENABLED: bool = True

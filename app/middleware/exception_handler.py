@@ -5,6 +5,7 @@ from app.core.exceptions import (
     BatchSizeExceededException,
     EmptyTextException,
     ModelLoadException,
+    OverloadedException,
     TextTooLongException,
     ValidationException,
 )
@@ -44,6 +45,14 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=ErrorResponse(error="Validation Error", code=exc.code, details=exc.message).model_dump()
+        )
+
+    @app.exception_handler(OverloadedException)
+    async def overloaded_handler(request: Request, exc: OverloadedException):
+        logger.warning("Bulk queue full: request rejected")
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content=ErrorResponse(error="Overloaded", code=exc.code, details=exc.message).model_dump()
         )
 
     @app.exception_handler(ModelLoadException)

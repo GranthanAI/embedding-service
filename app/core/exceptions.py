@@ -18,6 +18,12 @@ class ValidationException(EmbeddingServiceException):
         super().__init__(message, code="VALIDATION_ERROR")
 
 
+class OverloadedException(EmbeddingServiceException):
+    """Raised when the bulk queue is full (maps to RESOURCE_EXHAUSTED / HTTP 429)."""
+    def __init__(self, message: str):
+        super().__init__(message, code="RESOURCE_EXHAUSTED")
+
+
 class EmptyTextException(ValidationException):
     """Raised when empty or whitespace-only text is provided."""
     def __init__(self, message: str = "Text cannot be null or empty"):

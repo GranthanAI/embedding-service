@@ -1,5 +1,5 @@
 import grpc
-from app.core.exceptions import EmbeddingServiceException, ValidationException
+from app.core.exceptions import EmbeddingServiceException, OverloadedException, ValidationException
 from app.core.logging import logger
 from app.grpc.generated import embedding_pb2, embedding_pb2_grpc
 from app.services.embedding_service import EmbeddingService
@@ -48,6 +48,9 @@ class EmbeddingServiceServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
                 dimension=res.dimension,
                 embedding=res.embedding
             )
+        except OverloadedException as e:
+            logger.warning(f"gRPC GenerateEmbedding rejected: bulk queue full")
+            context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, e.message)
         except EmbeddingServiceException as e:
             logger.warning(f"gRPC GenerateEmbedding validation error: {e.message}")
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, e.message)
@@ -84,6 +87,9 @@ class EmbeddingServiceServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
                 dimension=res.dimension,
                 embeddings=vectors
             )
+        except OverloadedException as e:
+            logger.warning(f"gRPC GenerateEmbeddings rejected: bulk queue full")
+            context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, e.message)
         except EmbeddingServiceException as e:
             logger.warning(f"gRPC GenerateEmbeddings validation error: {e.message}")
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, e.message)

@@ -31,11 +31,13 @@ class EmbeddingService:
         self,
         model_manager: ModelManager,
         max_text_length: int = 8192,
-        max_batch_size: int = 256
+        max_batch_size: int = 256,
+        query_cache=None,
     ):
         self.model_manager = model_manager
         self.max_text_length = max_text_length
         self.max_batch_size = max_batch_size
+        self.query_cache = query_cache
 
     def validate_text(self, text: str) -> str:
         if text is None:
@@ -59,7 +61,12 @@ class EmbeddingService:
 
         try:
             valid_text = self.validate_text(text)
-            vector = self.model_manager.encode_single(valid_text)
+            cache = self.query_cache
+            vector = cache.get(self.model_manager.model_name, valid_text) if cache else None
+            if vector is None:
+                vector = self.model_manager.encode_single(valid_text)
+                if cache:
+                    cache.put(self.model_manager.model_name, valid_text, vector)
             
             duration = time.perf_counter() - start_time
             EMBEDDING_LATENCY.labels(request_type="single").observe(duration)

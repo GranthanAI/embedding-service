@@ -58,3 +58,18 @@ RERANK_MODEL_LOADED = Gauge(
     "rerank_model_loaded_status",
     "1 when the reranker model is resident in memory"
 )
+
+EMBEDDING_INPUTS = Counter(
+    "embedding_inputs_total",
+    "Texts examined for truncation (denominator for embedding_truncated_total)"
+)
+
+EMBEDDING_TRUNCATED = Counter(
+    "embedding_truncated_total",
+    "Texts longer than the model max_seq_length in tokens (the model truncates them silently)"
+)
+
+BULK_REJECTED = Counter(
+    "embedding_bulk_rejected_total",
+    "Bulk batches rejected because the bulk queue was full"
+)
