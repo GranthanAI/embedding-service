@@ -24,8 +24,17 @@ class EmbeddingServiceServicer(embedding_pb2_grpc.EmbeddingServiceServicer):
             )
             return embedding_pb2.RerankResponse()
         try:
-            scores = self.reranker.rerank(request.query, list(request.passages))
-            return embedding_pb2.RerankResponse(model=self.reranker.model_name, scores=scores)
+            reranker = self.reranker
+            requested = request.model.strip()
+            if requested:
+                if hasattr(reranker, "for_model"):
+                    reranker = reranker.for_model(requested)          # ValidationException if the model is not enabled
+                elif requested != reranker.model_name:
+                    raise ValidationException(f"Reranker '{requested}' is not enabled on this server. Enabled: {reranker.model_name}.")
+            elif hasattr(reranker, "for_model"):
+                reranker = reranker.for_model("")                      # the server default
+            scores = reranker.rerank(request.query, list(request.passages))
+            return embedding_pb2.RerankResponse(model=reranker.model_name, scores=scores)
         except EmbeddingServiceException as e:
             logger.warning(f"gRPC Rerank error: {e.message}")
             code = (

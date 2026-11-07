@@ -33,11 +33,15 @@ class EmbeddingService:
         max_text_length: int = 8192,
         max_batch_size: int = 256,
         query_cache=None,
+        query_prefix: str = "",
+        passage_prefix: str = "",
     ):
         self.model_manager = model_manager
         self.max_text_length = max_text_length
         self.max_batch_size = max_batch_size
         self.query_cache = query_cache
+        self.query_prefix = query_prefix
+        self.passage_prefix = passage_prefix
 
     def validate_text(self, text: str) -> str:
         if text is None:
@@ -62,11 +66,13 @@ class EmbeddingService:
         try:
             valid_text = self.validate_text(text)
             cache = self.query_cache
-            vector = cache.get(self.model_manager.model_name, valid_text) if cache else None
+            # The cache is keyed by model AND prefix: the same text embeds differently under another prefix, and a Redis layer outlives restarts.
+            cache_model = f"{self.model_manager.model_name}|{self.query_prefix}" if self.query_prefix else self.model_manager.model_name
+            vector = cache.get(cache_model, valid_text) if cache else None
             if vector is None:
-                vector = self.model_manager.encode_single(valid_text)
+                vector = self.model_manager.encode_single(self.query_prefix + valid_text)
                 if cache:
-                    cache.put(self.model_manager.model_name, valid_text, vector)
+                    cache.put(cache_model, valid_text, vector)
             
             duration = time.perf_counter() - start_time
             EMBEDDING_LATENCY.labels(request_type="single").observe(duration)
@@ -97,7 +103,7 @@ class EmbeddingService:
             EMBEDDING_BATCH_SIZE.observe(len(texts))
 
             validated_texts = [self.validate_text(t) for t in texts]
-            vectors = self.model_manager.encode_batch(validated_texts)
+            vectors = self.model_manager.encode_batch([self.passage_prefix + t for t in validated_texts])
 
             duration = time.perf_counter() - start_time
             EMBEDDING_LATENCY.labels(request_type="batch").observe(duration)

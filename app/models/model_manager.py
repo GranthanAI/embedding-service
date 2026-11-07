@@ -16,6 +16,17 @@ from app.core.metrics import (
 from app.models.priority_gate import PriorityGate
 
 
+def resolve_load_target(model_name: str, model_path: Optional[str]) -> tuple[str, str]:
+    """(what to load, why). A local MODEL_PATH is used only if it names the same model as MODEL_NAME (compared by last path component,
+    case-insensitively); otherwise MODEL_NAME is loaded. Without this, setting MODEL_NAME=<another model> while MODEL_PATH still pointed at
+    the previous one would load the OLD weights under the NEW name and index vectors that are mislabelled."""
+    if not model_path or not os.path.exists(model_path):
+        return model_name, "model_path_unset_or_missing"
+    if os.path.basename(os.path.normpath(model_path)).lower() == model_name.replace("\\", "/").rstrip("/").split("/")[-1].lower():
+        return model_path, "model_path_matches_model_name"
+    return model_name, "model_path_is_a_different_model"
+
+
 class ModelManager:
     """
     Singleton manager for SentenceTransformer embedding model.
@@ -34,6 +45,7 @@ class ModelManager:
         bulk_slice_size: int = 16,
         bulk_max_pending: int = 4,
         truncation_metric: bool = True,
+        max_seq_length: int = 0,
     ):
         self.model_name = model_name
         self.model_path = model_path
@@ -47,6 +59,7 @@ class ModelManager:
         self.bulk_slice_size = max(1, bulk_slice_size)
         self.bulk_max_pending = bulk_max_pending
         self.truncation_metric = truncation_metric
+        self.max_seq_length_cap = max(0, max_seq_length)
         self.gate = PriorityGate()
         self._pending_bulk = 0
         self._pending_lock = threading.Lock()
@@ -61,9 +74,13 @@ class ModelManager:
                 logger.info("Model is already loaded in memory.")
                 return
 
-            target = self.model_name
-            if self.model_path and os.path.exists(self.model_path):
-                target = self.model_path
+            target, why = resolve_load_target(self.model_name, self.model_path)
+            if why == "model_path_is_a_different_model":
+                logger.warning(
+                    f"MODEL_PATH '{self.model_path}' is a different model than MODEL_NAME '{self.model_name}'; ignoring MODEL_PATH and "
+                    "loading MODEL_NAME."
+                )
+            elif target == self.model_path:
                 logger.info(f"Loading SentenceTransformer from configured local path: {target}")
             else:
                 logger.info(f"Local path '{self.model_path}' not found or unspecified. Loading from model name: {target}")
@@ -71,6 +88,8 @@ class ModelManager:
             try:
                 self._model = SentenceTransformer(target, device=self.device)
                 self._dimension = self._model.get_embedding_dimension()
+                if 0 < self.max_seq_length_cap < int(self._model.max_seq_length):
+                    self._model.max_seq_length = self.max_seq_length_cap
                 MODEL_LOADED.set(1)
                 logger.info(
                     f"Successfully loaded model '{self.model_name}' (dimension={self._dimension}) on device '{self.device}'."

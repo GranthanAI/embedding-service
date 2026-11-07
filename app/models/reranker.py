@@ -59,6 +59,13 @@ class Reranker:
                 logger.error(f"Failed to load reranker: {e}", exc_info=True)
                 raise ModelLoadException(f"Failed to load reranker '{self.model_name}': {e}")
 
+    def unload(self) -> None:
+        """Frees the model (waits for an in-flight predict). A later rerank() lazily reloads it."""
+        with self._predict_lock:
+            with self._lock:
+                self._model = None
+                RERANK_MODEL_LOADED.set(0)
+
     def validate(self, query: str, passages: List[str]) -> None:
         if query is None or not query.strip():
             RERANK_ERRORS.labels(error_type="EmptyQuery").inc()

@@ -3,6 +3,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.models.model_manager import ModelManager
 from app.models.reranker import Reranker
+from app.models.reranker_pool import RerankerPool
 from app.services.embedding_service import EmbeddingService
 from app.services.query_cache import QueryCache, RedisLayer
 
@@ -15,7 +16,7 @@ class Container:
     def __init__(self):
         self.model_manager: Optional[ModelManager] = None
         self.embedding_service: Optional[EmbeddingService] = None
-        self.reranker: Optional[Reranker] = None
+        self.reranker: Optional[RerankerPool] = None
 
     async def init_resources(self) -> None:
         """
@@ -33,6 +34,8 @@ class Container:
             bulk_slice_size=settings.BULK_SLICE_SIZE,
             bulk_max_pending=settings.BULK_MAX_PENDING,
             truncation_metric=settings.TRUNCATION_METRIC_ENABLED,
+            max_seq_length=settings.MAX_SEQ_LENGTH,
+            tokenizer_id=settings.TOKENIZER_ID or None,
         )
         self.model_manager.load_model()
 
@@ -46,16 +49,23 @@ class Container:
                 redis_layer=RedisLayer(settings.QUERY_CACHE_REDIS_URL, settings.QUERY_CACHE_REDIS_TTL_SECONDS)
                 if settings.QUERY_CACHE_REDIS_URL else None,
             ),
+            query_prefix=settings.QUERY_PREFIX,
+            passage_prefix=settings.PASSAGE_PREFIX,
         )
 
         # 3. Reranker (lazy unless RERANKER_PRELOAD)
         if settings.RERANKER_ENABLED:
-            self.reranker = Reranker(
-                model_name=settings.RERANKER_MODEL,
-                device=settings.DEVICE,
-                max_passages=settings.RERANKER_MAX_PASSAGES,
-                max_length=settings.RERANKER_MAX_LENGTH,
-                batch_size=settings.RERANKER_BATCH_SIZE,
+            self.reranker = RerankerPool(
+                default_model=settings.RERANKER_MODEL,
+                allowed_models=settings.RERANKER_ALLOWED_MODELS.split(","),
+                max_loaded=settings.RERANKER_MAX_LOADED,
+                factory=lambda name: Reranker(
+                    model_name=name,
+                    device=settings.DEVICE,
+                    max_passages=settings.RERANKER_MAX_PASSAGES,
+                    max_length=settings.RERANKER_MAX_LENGTH,
+                    batch_size=settings.RERANKER_BATCH_SIZE,
+                ),
             )
             if settings.RERANKER_PRELOAD:
                 self.reranker.load()
